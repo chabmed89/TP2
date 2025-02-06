@@ -36,6 +36,11 @@ def init_figure():
                 color=THEME.get('font_color', "black")     # Vérifier que THEME est bien défini
             )
         ),
+         # Add these lines to control size
+        width=800,   # Wider figure
+        height=500,  # Taller figure
+        margin=dict(l=50, r=50, t=50, b=50), # Adjust margins for better spacing
+
         xaxis=dict(
             title="Act",
             tickvals=[1, 2, 3, 4, 5],
@@ -71,12 +76,12 @@ def draw(fig, data, mode):
 
     if mode not in ['count', 'percent']:
         raise ValueError("Invalid mode. Choose 'LineCount' or 'LinePercent'.")
-
     # Sélectionner la bonne colonne
     y_col = MODE_TO_COLUMN[MODES[mode]]
     y_axis_title = "Lines(Count)" if mode == "count" else "Lines(%)"
 
     fig.data = []
+
     # Ajouter les barres pour chaque joueur
     for player in data['Player'].unique():
         player_data = data[data['Player'] == player]

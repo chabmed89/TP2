@@ -4,6 +4,9 @@
 import pandas as pd
 from modes import MODE_TO_COLUMN
 
+import pandas as pd
+from modes import MODE_TO_COLUMN
+
 def summarize_lines(my_df):
     '''
         Sums each player's total of number of lines and  its
@@ -21,30 +24,25 @@ def summarize_lines(my_df):
             The modified pandas dataframe containing the
             information described above.
     '''
-     # Regrouper les données par 'Player' et 'Act', en sommant le nombre de lignes
-    data_grouped = (
-        my_df.groupby(['Player', 'Act'])
-        .agg({'Line': 'sum'})
-        .reset_index()
-        .rename(columns={'Line': 'PlayerLine'})
-    )
+    # TODO : Modify the dataframe, removing the line content and replacing
+    # it by line count and percent per player per act
 
-    # Calculer le total des lignes par acte
-    total_lines_per_act = data_grouped.groupby('Act')['PlayerLine'].transform('sum')
+    # The sum of lines per player per act
+    line_counts = my_df.groupby(['Act', 'Player']).size().reset_index(name='LineCount')
+    # Calculate the total lines per act
+    total_lines_per_act = my_df.groupby('Act').size().reset_index(name='TotalLines')
+    # Merge the line counts with the total lines per act
+    merged_df = pd.merge(line_counts, total_lines_per_act, on='Act')
+    # Calculate the percentage of lines per player per act
+    merged_df['LinePercent'] = (merged_df['LineCount'] / merged_df['TotalLines']) * 100
+    merged_df.drop(columns=['TotalLines'], inplace=True)
+    
+    return merged_df
 
-    # Calculer le pourcentage des lignes de chaque joueur par rapport au total de l'acte
-    data_grouped['PlayerPercent'] = (data_grouped['PlayerLine'] / total_lines_per_act) * 100
-
-    # Trier les données pour une meilleure lisibilité
-    data_grouped = data_grouped.sort_values(by=['Act', 'Player'], ascending=[True, True])
-
-    return data_grouped
-
-
-def replace_others(my_df, top_n= 5):
+def replace_others(my_df):
     '''
         For each act, keeps the 5 players with the most lines
-        throughout the play and groups the other players
+        throughout the play and groups the other plyaers
         together in a new line where :
 
         - The 'Act' column contains the act
@@ -64,46 +62,38 @@ def replace_others(my_df, top_n= 5):
             The df with all players not in the top
             5 for the play grouped as 'OTHER'
     '''
-    # Vérifier si la colonne "Line" est bien utilisée pour compter les répliques
-    my_df['Line'] = 1  # Chaque ligne représente une réplique
-
-    # Identifier les top_n joueurs ayant le plus de répliques sur toute la pièce
-    top_players_global = (
-        my_df.groupby('Player')['Line'].count()  # Compter les répliques totales par joueur
+    # TODO : Replace players in each act not in the top 5 by a
+    # new player 'OTHER' which sums their line count and percentage
+    
+    # Calculate the total lines for each player across all acts
+    total_lines_per_player = (
+        my_df.groupby('Player')
+        .agg({'LineCount': 'sum', 'LinePercent': 'sum'})
         .reset_index()
-        .sort_values(by='Line', ascending=False)  # Trier pour obtenir le top N global
-        .head(top_n)  # Garder les premiers N joueurs sur toute la pièce
     )
 
-    top_players_set = set(top_players_global['Player'])  # Ensemble des top joueurs
+    # Find the top 5 players with the most lines in the entire play
+    top_5_players = total_lines_per_player.nlargest(5, 'LineCount')['Player']
 
-    # Remplacer les joueurs en dehors du top_n global par "Other"
-    my_df['PlayerCategory'] = my_df.apply(
-        lambda row: row['Player'] if row['Player'] in top_players_set else 'Other', axis=1
-    )
+    # Filter the original DataFrame to keep only the top 5 players
+    top_5_df = my_df[my_df['Player'].isin(top_5_players)]
 
-    # Regrouper par 'PlayerCategory' et 'Act', puis compter le nombre de répliques
-    data_grouped = (
-        my_df.groupby(['PlayerCategory', 'Act'])
-        .agg({'Line': 'count'})  # Compter les répliques et non les sommer
+    # Group the remaining players as 'OTHER' and aggregate their lines and percentages
+    others_df = my_df[~my_df['Player'].isin(top_5_players)]
+    others_aggregated = (
+        others_df.groupby('Act')
+        .agg({'LineCount': 'sum', 'LinePercent': 'sum'})
         .reset_index()
-        .rename(columns={'Line': 'LineCount', 'PlayerCategory': 'Player'})
     )
+    others_aggregated['Player'] = 'OTHER'
 
-    # Calculer le total des répliques par acte
-    total_lines_per_act = data_grouped.groupby('Act')['LineCount'].transform('sum')
+    # Combine the top 5 players and the 'OTHER' group
+    result_df = pd.concat([top_5_df, others_aggregated], ignore_index=True)
 
-    # Calculer le pourcentage des répliques prononcées par catégorie de joueur
-    data_grouped['LinePercent'] = (data_grouped['LineCount'] / total_lines_per_act) * 100
+    # Sort the final DataFrame by 'Act' and 'Player'
+    result_df = result_df.sort_values(by=['Act', 'Player'], ascending=[True, True])
 
-    # Trier pour une meilleure lisibilité
-    data_grouped = (
-    data_grouped.sort_values(['Act', 'Player'], ascending=[True, True])
-    .reset_index(drop=True)
-)
-
-    return data_grouped
-
+    return result_df
 
 def clean_names(my_df):
     '''
@@ -113,17 +103,14 @@ def clean_names(my_df):
         Returns:
             The df with formatted names
     '''
-    if 'Player' not in my_df.columns:
-        raise ValueError("Le DataFrame doit contenir une colonne 'Player'")
-    
-    # Créer une copie pour éviter de modifier le DataFrame original
-    df_copy = my_df.copy()
-    
-    # Appliquer .title() à chaque nom de joueur, en préservant 'OTHER' tel quel
-    df_copy['Player'] = df_copy['Player'].apply(
-        lambda x: x if x == 'OTHER' else x.title()
-    )
-    return df_copy
+    # TODO : Clean the player names
 
-df = pd.read_csv(r"C:\Users\LENOVO\OneDrive\Documents\TP2_viz\code\code\src\assets\data\romeo_and_juliet.csv")
-print(clean_names(replace_others(df, top_n=5)))
+    my_df['Player'] = my_df['Player'].str.title()
+    my_df = my_df.reset_index(drop=True)
+    return my_df
+
+# my_df = pd.read_csv('src/assets/data/romeo_and_juliet.csv')
+# merged_df = summarize_lines(my_df)
+# result_df = replace_others(merged_df)
+# result = clean_names(result_df)
+# print(result)

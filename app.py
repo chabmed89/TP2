@@ -36,11 +36,12 @@ def prep_data():
         Returns:
             A pandas dataframe containing the preprocessed data.
     '''
-    dataframe = pd.read_csv('./assets/data/romeo_and_juliet.csv')
+    dataframe = pd.read_csv(r"C:\Users\LENOVO\OneDrive\Documents\TP2_viz\code\code\src\assets\data\romeo_and_juliet.csv")
 
     proc_data = preprocess.summarize_lines(dataframe)
     proc_data = preprocess.replace_others(proc_data)
     proc_data = preprocess.clean_names(proc_data)
+
 
     return proc_data
 
@@ -128,7 +129,6 @@ def radio_updated(mode, figure):
     # Vérifier si le mode est valide
     mode = mode.lower()  # Uniformiser le mode en minuscule
 
-    print(f"Mode sélectionné : {mode}")  # Vérifier si la fonction est bien appelée
     if mode not in ['count', 'percent']:
         raise ValueError(f"Invalid mode: {mode}. Choose 'count' or 'percent'.")
 
